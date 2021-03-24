@@ -467,10 +467,10 @@ class CameraActivity : AppCompatActivity() {
             imageCapture = ImageCapture.Builder()
 //                .setTargetAspectRatio(AspectRatio.RATIO_4_3)
                     .setTargetResolution(Size(1080, 1440))
-                    .setFlashMode(ImageCapture.FLASH_MODE_OFF)
+                    .setFlashMode(ImageCapture.FLASH_MODE_ON)
                     .build()
 
-            camera_flash_button.setBackgroundResource(R.drawable.camera_flash_off)
+            camera_flash_button.setBackgroundResource(R.drawable.camera_flash_on)
 
             // Select back camera as a default
             val cameraSelector = lensFace
