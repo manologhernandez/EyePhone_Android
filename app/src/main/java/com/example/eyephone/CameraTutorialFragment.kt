@@ -19,13 +19,30 @@ class CameraTutorialFragment : DialogFragment() {
         super.onViewCreated(view, savedInstanceState)
         //TODO make sure data sent to adapter is proper
         val data = listOf<String>(
-            "To take an image with EyePhone, rotate your device to landscape mode.",
-            "Use a mirror",
-            "Or ask help from a friend",
-            "Make sure your device is about 4 inches away from your face. Adjust the zoom if necessary.",
-            "To ensure best image quality, having flash turned on is recommended."
+            "Rotate your device 90 degrees to landscape mode",
+            "Place your phone in between your eye and the mirror such that you can see your screen using the reflection of the mirror.",
+            "If possible, you may ask help from a friend, family member, or caregiver.",
+            "Keep your device 4 inches away from your face.",
+            "Adjust the zoom so that your eye covers almost the entire screen. Using Flash is recommended to get a clearer image.",
+            "Review your photo to ensure the image captured is clear. Retake your image if necessary."
         )
-        val adapter = CameraTutorialAdapter(data)
+        val titles = listOf<String>(
+            "Landscape Mode",
+            "Use A Mirror",
+            "Ask Help From A friend",
+            "Keep Space",
+            "Zoom and Flash",
+            "Review Your Photo"
+        )
+        val imgs = listOf<Int>(
+            R.drawable.ic_landscape,
+            R.drawable.ic_mirror,
+            R.drawable.ic_friend,
+            R.drawable.ic_selfie,
+            R.drawable.ic_zoom,
+            R.drawable.ic_selfie2
+        )
+        val adapter = CameraTutorialAdapter(data, imgs, titles)
         viewPager.adapter = adapter
 
         indicator.setViewPager(viewPager)

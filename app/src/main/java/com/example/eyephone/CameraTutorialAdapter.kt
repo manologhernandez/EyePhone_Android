@@ -7,7 +7,9 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlinx.android.synthetic.main.fragment_camera_tutorial_data.view.*
 
 class CameraTutorialAdapter(
-        val data : List<String>
+        val data : List<String>,
+        val imgs : List<Int>,
+        val titles: List<String>
 ) : RecyclerView.Adapter<CameraTutorialAdapter.ViewPagerViewHolder>() {
     inner class ViewPagerViewHolder(itemView: View): RecyclerView.ViewHolder(itemView)
 
@@ -19,7 +21,11 @@ class CameraTutorialAdapter(
     override fun onBindViewHolder(holder: ViewPagerViewHolder, position: Int) {
         //TODO fix how the data is connected to layout elements
         val curString = data[position]
+        val curImg = imgs[position]
+        val curTitle = titles[position]
         holder.itemView.descText.setText(curString)
+        holder.itemView.titleText.setText(curTitle)
+        holder.itemView.imageView2.setImageResource(curImg)
     }
 
     override fun getItemCount(): Int {
