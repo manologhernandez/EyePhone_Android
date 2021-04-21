@@ -72,7 +72,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:paddingBottom="20dp"
-                    android:max="200"
+                    android:max="510"
+                    android:progress="255"
                     />
             </LinearLayout>
         </LinearLayout>

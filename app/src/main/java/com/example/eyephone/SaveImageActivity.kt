@@ -2,10 +2,7 @@
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.Matrix
+import android.graphics.*
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Bundle
@@ -33,8 +30,13 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 
 
+ class TempImage(var originalBmp: Bitmap, var finalBmp: Bitmap, var brightnessMod: Float, var contrastMod: Float, var sharpnessMod: Float);
+
  class SaveImageActivity : AppCompatActivity() {
     lateinit var imageUri: Uri
+
+    //initialize tempImage class with default values
+    var myTempImage = TempImage(Bitmap.createBitmap(1,1,Bitmap.Config.ARGB_8888), Bitmap.createBitmap(1,1,Bitmap.Config.ARGB_8888), 0f, 1f, 0f)
     private val chars = ('a'..'Z') + ('A'..'Z') + ('0'..'9')
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -50,6 +52,8 @@ import javax.crypto.KeyGenerator
                 println("Received URI in second activity")
                 imageView.setImageURI(uri)
                 imageUri = uri
+                myTempImage.originalBmp = (imageView.drawable as BitmapDrawable).bitmap
+                myTempImage.finalBmp = (imageView.drawable as BitmapDrawable).bitmap
             }
         }
 
@@ -80,11 +84,8 @@ import javax.crypto.KeyGenerator
             }
             if (validated) {
 
-                // obtain bitmap from imageview
-                val drawable = imageView.drawable as BitmapDrawable
-                val image_bitmap = drawable.bitmap
-
-
+                // obtain final bitmap
+                val imageBitmap = myTempImage.finalBmp
 
                 // embed L|R on image
                 val embed = when(img_type){
@@ -102,7 +103,7 @@ import javax.crypto.KeyGenerator
                     )
                 }
 
-                val newBitmap = overlay(image_bitmap, embed)
+                val newBitmap = overlay(imageBitmap, embed)
                 val stream = ByteArrayOutputStream()
                 if (newBitmap != null) {
                     newBitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream)
@@ -141,10 +142,8 @@ import javax.crypto.KeyGenerator
         }
         // initialize sharpen seekbar
         sharpenSeekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seek: SeekBar,
-                                           progress: Int, fromUser: Boolean) {
+            override fun onProgressChanged(seek: SeekBar, progress: Int, fromUser: Boolean) {
                 // write custom code for progress is changed
-
             }
 
             override fun onStartTrackingTouch(seek: SeekBar) {
@@ -153,18 +152,29 @@ import javax.crypto.KeyGenerator
 
             override fun onStopTrackingTouch(seek: SeekBar) {
                 // write custom code for progress is stopped
-                Toast.makeText(applicationContext, "Progress is: " + seek.progress + "%",
-                        Toast.LENGTH_SHORT).show()
-                val imageByteArray = readBytes(applicationContext, imageUri)
-                if (imageByteArray != null) {
-                    val image_bitmap = BitmapFactory.decodeByteArray(
-                            imageByteArray,
-                            0,
-                            imageByteArray.size
-                    )
-                    var newBitmap = sharpen(image_bitmap, (seek.progress.toFloat()) / 100)
-                    imageView.setImageBitmap(newBitmap)
-                }
+                myTempImage.sharpnessMod = seek.progress.toFloat() / 100
+                editPhoto(myTempImage)
+                imageView.setImageBitmap(myTempImage.finalBmp)
+            }
+        })
+        // initialize brightness seekbar
+        brightnessSeekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seek: SeekBar, progress: Int, fromUser: Boolean) {
+                // write custom code for progress is changed
+            }
+
+            override fun onStartTrackingTouch(seek: SeekBar) {
+                // write custom code for progress is started
+            }
+
+            override fun onStopTrackingTouch(seek: SeekBar) {
+                // write custom code for progress is stopped
+
+                //NOTE: Progress range: [0,510]. Default brightness is 255. Subtract progress by 255 to get a range of [-255,255]
+                myTempImage.brightnessMod = seek.progress.toFloat() - 255
+                editPhoto(myTempImage)
+                imageView.setImageBitmap(myTempImage.finalBmp)
+
             }
         })
     }
@@ -182,7 +192,33 @@ import javax.crypto.KeyGenerator
         bmp2.recycle()
         return bmOverlay
     }
-     fun sharpen(bitmap: Bitmap, multiplier: Float): Bitmap {
+
+     fun editPhoto(image: TempImage){
+         val sharpenedImage = modifySharpness(image.originalBmp, image.sharpnessMod)
+         val brightenedImage = changeBitmapContrastBrightness(sharpenedImage, image.contrastMod, image.brightnessMod)
+         image.finalBmp = brightenedImage
+     }
+
+     /**
+      *
+      * @param bmp input bitmap
+      * @param contrast 0..10 1 is default
+      * @param brightness -255..255 0 is default
+      * @return new bitmap
+      */
+     fun changeBitmapContrastBrightness(bmp: Bitmap, contrast: Float, brightness: Float): Bitmap {
+         val cm = ColorMatrix(floatArrayOf(
+                 contrast, 0f, 0f, 0f, brightness, 0f, contrast, 0f, 0f, brightness, 0f, 0f, contrast, 0f, brightness, 0f, 0f, 0f, 1f, 0f))
+         val ret = Bitmap.createBitmap(bmp.width, bmp.height, bmp.config)
+         val canvas = Canvas(ret)
+         val paint = Paint()
+         paint.setColorFilter(ColorMatrixColorFilter(cm))
+         canvas.drawBitmap(bmp, 0f, 0f, paint)
+         return ret
+     }
+
+
+     fun modifySharpness(bitmap: Bitmap, multiplier: Float): Bitmap {
          val sharp = floatArrayOf(0f, (-multiplier).toFloat(), 0f, (-multiplier).toFloat(), 1 + 4f * multiplier, (-multiplier).toFloat(), 0f, (-multiplier).toFloat(), 0f)
          val newBitmap = Bitmap.createBitmap(
                  bitmap.getWidth(), bitmap.getHeight(),
