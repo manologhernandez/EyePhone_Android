@@ -13,12 +13,16 @@ import android.renderscript.ScriptIntrinsicConvolve3x3
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.SeekBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.gson.GsonBuilder
+import kotlinx.android.synthetic.main.activity_camera.*
 import kotlinx.android.synthetic.main.activity_save_image.*
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -38,6 +42,24 @@ import javax.crypto.KeyGenerator
     //initialize tempImage class with default values
     var myTempImage = TempImage(Bitmap.createBitmap(1,1,Bitmap.Config.ARGB_8888), Bitmap.createBitmap(1,1,Bitmap.Config.ARGB_8888), 0f, 1f, 0f)
     private val chars = ('a'..'Z') + ('A'..'Z') + ('0'..'9')
+
+     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+         menuInflater.inflate(R.menu.app_toolbar_savephoto_menu, menu);
+         return true
+     }
+     override fun onOptionsItemSelected(item: MenuItem) = when (item.itemId) {
+         R.id.action_save -> {
+             // User chose the "Info" item, show the app Info UI...
+             save()
+             true
+         }
+
+         else -> {
+             // If we got here, the user's action was not recognized.
+             // Invoke the superclass to handle it.
+             super.onOptionsItemSelected(item)
+         }
+     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,83 +89,12 @@ import javax.crypto.KeyGenerator
             imgTitleContainer.editText?.setText("")
         }
 
-
-        // initialize save button
-        saveBtn.setOnClickListener {
-            // grab image title and image type from user
-            val img_title = imgTitleContainer.editText?.text.toString()
-            val img_type = dropdown.editText?.text.toString()
-            var validated = true
-            if (img_title == ""){
-                imgTitleContainer.error = "Please input a valid image title."
-                validated = false
-            }
-            if (img_type == ""){
-                dropdown.error = "Please select a valid image type."
-                validated = false
-            }
-            if (validated) {
-
-                // obtain final bitmap
-                val imageBitmap = myTempImage.finalBmp
-
-                // embed L|R on image
-                val embed = when(img_type){
-                    Constants().LEFT_EYE -> BitmapFactory.decodeResource(
-                            this.resources,
-                            R.drawable.overlay_left_eye
-                    )
-                    Constants().RIGHT_EYE -> BitmapFactory.decodeResource(
-                            this.resources,
-                            R.drawable.overlay_right_eye
-                    )
-                    else -> BitmapFactory.decodeResource(
-                            this.resources,
-                            R.drawable.overlay_both_eyes
-                    )
-                }
-
-                val newBitmap = overlay(imageBitmap, embed)
-                val stream = ByteArrayOutputStream()
-                if (newBitmap != null) {
-                    newBitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream)
-                }
-                val finalImage = stream.toByteArray()
-                // encrypt image byte array using android keystore
-                // generate a new alias and key
-                val alias = generateAlias()
-                generateKey(alias)
-                // encrypt imageByteArray using key alias. Returns a par of IvBytes and Encrypted Bytes
-                val pair :Pair<ByteArray, ByteArray> =  encrypt(finalImage, alias)
-                // convert byte arrays to strings and save as json string
-                val jsonString = generateJsonString(
-                        pair.first,
-                        pair.second,
-                        alias,
-                        img_title,
-                        img_type,
-                        Date()
-                )
-                val filename = "IMG_$alias.json"
-
-                // store data into file (JSON FORMAT)
-                writeJson(filename, jsonString)
-
-
-            }
-
-        }
-        // initialize retake button
-        retakeBtn.setOnClickListener {
-            // return to camera activity
-            val intent = Intent(this, CameraActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            startActivity(intent);
-        }
         // initialize sharpen seekbar
         sharpenSeekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seek: SeekBar, progress: Int, fromUser: Boolean) {
                 // write custom code for progress is changed
+
+                progressIndicator.setText(progress.toString())
             }
 
             override fun onStartTrackingTouch(seek: SeekBar) {
@@ -161,6 +112,7 @@ import javax.crypto.KeyGenerator
         brightnessSeekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seek: SeekBar, progress: Int, fromUser: Boolean) {
                 // write custom code for progress is changed
+                progressIndicator.setText(progress.toString())
             }
 
             override fun onStartTrackingTouch(seek: SeekBar) {
@@ -177,12 +129,94 @@ import javax.crypto.KeyGenerator
 
             }
         })
+        // initialize contrast seekbar
+        contrastSeekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seek: SeekBar, progress: Int, fromUser: Boolean) {
+                // write custom code for progress is changed
+                progressIndicator.setText(progress.toString())
+            }
+
+            override fun onStartTrackingTouch(seek: SeekBar) {
+                // write custom code for progress is started
+            }
+
+            override fun onStopTrackingTouch(seek: SeekBar) {
+                // write custom code for progress is stopped
+
+                //NOTE: Progress range: [0,200]. Default Contrast is 100. Divide progress by 100 to get a range of [0,10]
+                myTempImage.contrastMod = seek.progress.toFloat() / 100
+                editPhoto(myTempImage)
+                imageView.setImageBitmap(myTempImage.finalBmp)
+
+            }
+        })
     }
 
     @Throws(IOException::class)
     private fun readBytes(context: Context, uri: Uri): ByteArray? =
         context.contentResolver.openInputStream(uri)?.buffered()?.use { it.readBytes() }
 
+     fun save() {
+         // grab image title and image type from user
+         val img_title = imgTitleContainer.editText?.text.toString()
+         val img_type = dropdown.editText?.text.toString()
+         var validated = true
+         if (img_title == "") {
+             imgTitleContainer.error = "Please input a valid image title."
+             validated = false
+         }
+         if (img_type == "") {
+             dropdown.error = "Please select a valid image type."
+             validated = false
+         }
+         if (validated) {
+
+             // obtain final bitmap
+             val imageBitmap = myTempImage.finalBmp
+
+             // embed L|R on image
+             val embed = when (img_type) {
+                 Constants().LEFT_EYE -> BitmapFactory.decodeResource(
+                         this.resources,
+                         R.drawable.overlay_left_eye
+                 )
+                 Constants().RIGHT_EYE -> BitmapFactory.decodeResource(
+                         this.resources,
+                         R.drawable.overlay_right_eye
+                 )
+                 else -> BitmapFactory.decodeResource(
+                         this.resources,
+                         R.drawable.overlay_both_eyes
+                 )
+             }
+
+             val newBitmap = overlay(imageBitmap, embed)
+             val stream = ByteArrayOutputStream()
+             if (newBitmap != null) {
+                 newBitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream)
+             }
+             val finalImage = stream.toByteArray()
+             // encrypt image byte array using android keystore
+             // generate a new alias and key
+             val alias = generateAlias()
+             generateKey(alias)
+             // encrypt imageByteArray using key alias. Returns a par of IvBytes and Encrypted Bytes
+             val pair: Pair<ByteArray, ByteArray> = encrypt(finalImage, alias)
+             // convert byte arrays to strings and save as json string
+             val jsonString = generateJsonString(
+                     pair.first,
+                     pair.second,
+                     alias,
+                     img_title,
+                     img_type,
+                     Date()
+             )
+             val filename = "IMG_$alias.json"
+
+             // store data into file (JSON FORMAT)
+             writeJson(filename, jsonString)
+         }
+     }
     fun overlay(bmp1: Bitmap, bmp2: Bitmap): Bitmap? {
         val bmOverlay = Bitmap.createBitmap(bmp1.width, bmp1.height, bmp1.config)
         val canvas = Canvas(bmOverlay)
@@ -207,8 +241,14 @@ import javax.crypto.KeyGenerator
       * @return new bitmap
       */
      fun changeBitmapContrastBrightness(bmp: Bitmap, contrast: Float, brightness: Float): Bitmap {
+
+//         val t = (1.0f - contrast)/2.0f
+         val t = 0f
          val cm = ColorMatrix(floatArrayOf(
-                 contrast, 0f, 0f, 0f, brightness, 0f, contrast, 0f, 0f, brightness, 0f, 0f, contrast, 0f, brightness, 0f, 0f, 0f, 1f, 0f))
+                 contrast, 0f, 0f, 0f, brightness,
+                 0f, contrast, 0f, 0f, brightness,
+                 0f, 0f, contrast, 0f, brightness,
+                 t, t, t, 1f, 0f))
          val ret = Bitmap.createBitmap(bmp.width, bmp.height, bmp.config)
          val canvas = Canvas(ret)
          val paint = Paint()
