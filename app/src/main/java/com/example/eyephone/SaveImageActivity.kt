@@ -8,11 +8,16 @@ import android.graphics.Canvas
 import android.graphics.Matrix
 import android.net.Uri
 import android.os.Bundle
+import android.renderscript.Allocation
+import android.renderscript.Element
+import android.renderscript.RenderScript
+import android.renderscript.ScriptIntrinsicConvolve3x3
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
+import android.widget.SeekBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.gson.GsonBuilder
@@ -77,23 +82,23 @@ import javax.crypto.KeyGenerator
                 val imageByteArray = readBytes(this, imageUri)
                 if (imageByteArray!= null){
                     val image_bitmap = BitmapFactory.decodeByteArray(
-                        imageByteArray,
-                        0,
-                        imageByteArray.size
+                            imageByteArray,
+                            0,
+                            imageByteArray.size
                     )
 
                     val embed = when(img_type){
                         Constants().LEFT_EYE -> BitmapFactory.decodeResource(
-                            this.resources,
-                            R.drawable.overlay_left_eye
+                                this.resources,
+                                R.drawable.overlay_left_eye
                         )
                         Constants().RIGHT_EYE -> BitmapFactory.decodeResource(
-                            this.resources,
-                            R.drawable.overlay_right_eye
+                                this.resources,
+                                R.drawable.overlay_right_eye
                         )
                         else -> BitmapFactory.decodeResource(
-                            this.resources,
-                            R.drawable.overlay_both_eyes
+                                this.resources,
+                                R.drawable.overlay_both_eyes
                         )
                     }
 
@@ -111,12 +116,12 @@ import javax.crypto.KeyGenerator
                     val pair :Pair<ByteArray, ByteArray> =  encrypt(finalImage, alias)
                     // convert byte arrays to strings and save as json string
                     val jsonString = generateJsonString(
-                        pair.first,
-                        pair.second,
-                        alias,
-                        img_title,
-                        img_type,
-                        Date()
+                            pair.first,
+                            pair.second,
+                            alias,
+                            img_title,
+                            img_type,
+                            Date()
                     )
                     val filename = "IMG_$alias.json"
 
@@ -129,12 +134,41 @@ import javax.crypto.KeyGenerator
             }
 
         }
+        // initialize retake button
         retakeBtn.setOnClickListener {
             // return to camera activity
             val intent = Intent(this, CameraActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             startActivity(intent);
         }
+        // initialize sharpen seekbar
+        sharpenSeekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seek: SeekBar,
+                                           progress: Int, fromUser: Boolean) {
+                // write custom code for progress is changed
+
+            }
+
+            override fun onStartTrackingTouch(seek: SeekBar) {
+                // write custom code for progress is started
+            }
+
+            override fun onStopTrackingTouch(seek: SeekBar) {
+                // write custom code for progress is stopped
+                Toast.makeText(applicationContext, "Progress is: " + seek.progress + "%",
+                        Toast.LENGTH_SHORT).show()
+                val imageByteArray = readBytes(applicationContext, imageUri)
+                if (imageByteArray!= null) {
+                    val image_bitmap = BitmapFactory.decodeByteArray(
+                            imageByteArray,
+                            0,
+                            imageByteArray.size
+                    )
+                    var newBitmap = sharpen(image_bitmap,( seek.progress.toFloat())/100)
+                    imageView.setImageBitmap(newBitmap)
+                }
+            }
+        })
     }
 
     @Throws(IOException::class)
@@ -150,6 +184,27 @@ import javax.crypto.KeyGenerator
         bmp2.recycle()
         return bmOverlay
     }
+     fun sharpen(bitmap: Bitmap, multiplier: Float): Bitmap {
+         val sharp = floatArrayOf(0f, (-multiplier).toFloat(), 0f, (-multiplier).toFloat(), 1 + 4f * multiplier, (-multiplier).toFloat(), 0f, (-multiplier).toFloat(), 0f)
+         val newBitmap = Bitmap.createBitmap(
+                 bitmap.getWidth(), bitmap.getHeight(),
+                 Bitmap.Config.ARGB_8888)
+
+         val rs = RenderScript.create(this)
+
+         val allocIn = Allocation.createFromBitmap(rs, bitmap)
+         val allocOut = Allocation.createFromBitmap(rs, newBitmap)
+
+         val convolution = ScriptIntrinsicConvolve3x3.create(rs, Element.U8_4(rs))
+         convolution.setInput(allocIn)
+         convolution.setCoefficients(sharp)
+         convolution.forEach(allocOut)
+
+         allocOut.copyTo(newBitmap)
+         rs.destroy()
+
+         return newBitmap
+     }
 
     private fun generateAlias(): String = List(16) { chars.random() }.joinToString("")
     private fun generateTitle(): String {
@@ -158,22 +213,22 @@ import javax.crypto.KeyGenerator
         return "Capture - $date"
     }
     private fun generateJsonString(
-        ivBytes: ByteArray,
-        encryptedBytes: ByteArray,
-        alias: String,
-        title: String,
-        type: String,
-        date: Date
+            ivBytes: ByteArray,
+            encryptedBytes: ByteArray,
+            alias: String,
+            title: String,
+            type: String,
+            date: Date
     ): String {
         val ivBase64Str = Base64.encodeToString(ivBytes, Base64.NO_WRAP)
         val encryptedBase64Str = Base64.encodeToString(encryptedBytes, Base64.NO_WRAP)
         val encryptedImage = EncryptedImage(
-            ivBase64Str,
-            encryptedBase64Str,
-            alias,
-            title,
-            type,
-            date
+                ivBase64Str,
+                encryptedBase64Str,
+                alias,
+                title,
+                type,
+                date
         )
         val gson = GsonBuilder().setPrettyPrinting().create()
         return gson.toJson(encryptedImage)
@@ -203,12 +258,12 @@ import javax.crypto.KeyGenerator
     private fun generateKey(alias: String){
         //generate random key
         val keyGenerator = KeyGenerator.getInstance(
-            KeyProperties.KEY_ALGORITHM_AES,
-            "AndroidKeyStore"
+                KeyProperties.KEY_ALGORITHM_AES,
+                "AndroidKeyStore"
         )
         val keyGenParameterSpec = KeyGenParameterSpec.Builder(
-            alias,
-            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+                alias,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
         )
             .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
