@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Matrix
+import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.renderscript.Allocation
@@ -78,57 +79,54 @@ import javax.crypto.KeyGenerator
                 validated = false
             }
             if (validated) {
+
+                // obtain bitmap from imageview
+                val drawable = imageView.drawable as BitmapDrawable
+                val image_bitmap = drawable.bitmap
+
+
+
                 // embed L|R on image
-                val imageByteArray = readBytes(this, imageUri)
-                if (imageByteArray!= null){
-                    val image_bitmap = BitmapFactory.decodeByteArray(
-                            imageByteArray,
-                            0,
-                            imageByteArray.size
+                val embed = when(img_type){
+                    Constants().LEFT_EYE -> BitmapFactory.decodeResource(
+                            this.resources,
+                            R.drawable.overlay_left_eye
                     )
-
-                    val embed = when(img_type){
-                        Constants().LEFT_EYE -> BitmapFactory.decodeResource(
-                                this.resources,
-                                R.drawable.overlay_left_eye
-                        )
-                        Constants().RIGHT_EYE -> BitmapFactory.decodeResource(
-                                this.resources,
-                                R.drawable.overlay_right_eye
-                        )
-                        else -> BitmapFactory.decodeResource(
-                                this.resources,
-                                R.drawable.overlay_both_eyes
-                        )
-                    }
-
-                    val newBitmap = overlay(image_bitmap, embed)
-                    val stream = ByteArrayOutputStream()
-                    if (newBitmap != null) {
-                        newBitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream)
-                    }
-                    val finalImage = stream.toByteArray()
-                    // encrypt image byte array using android keystore
-                    // generate a new alias and key
-                    val alias = generateAlias()
-                    generateKey(alias)
-                    // encrypt imageByteArray using key alias. Returns a par of IvBytes and Encrypted Bytes
-                    val pair :Pair<ByteArray, ByteArray> =  encrypt(finalImage, alias)
-                    // convert byte arrays to strings and save as json string
-                    val jsonString = generateJsonString(
-                            pair.first,
-                            pair.second,
-                            alias,
-                            img_title,
-                            img_type,
-                            Date()
+                    Constants().RIGHT_EYE -> BitmapFactory.decodeResource(
+                            this.resources,
+                            R.drawable.overlay_right_eye
                     )
-                    val filename = "IMG_$alias.json"
+                    else -> BitmapFactory.decodeResource(
+                            this.resources,
+                            R.drawable.overlay_both_eyes
+                    )
+                }
 
-                    // store data into file (JSON FORMAT)
-                    writeJson(filename, jsonString)
+                val newBitmap = overlay(image_bitmap, embed)
+                val stream = ByteArrayOutputStream()
+                if (newBitmap != null) {
+                    newBitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream)
+                }
+                val finalImage = stream.toByteArray()
+                // encrypt image byte array using android keystore
+                // generate a new alias and key
+                val alias = generateAlias()
+                generateKey(alias)
+                // encrypt imageByteArray using key alias. Returns a par of IvBytes and Encrypted Bytes
+                val pair :Pair<ByteArray, ByteArray> =  encrypt(finalImage, alias)
+                // convert byte arrays to strings and save as json string
+                val jsonString = generateJsonString(
+                        pair.first,
+                        pair.second,
+                        alias,
+                        img_title,
+                        img_type,
+                        Date()
+                )
+                val filename = "IMG_$alias.json"
 
-            }
+                // store data into file (JSON FORMAT)
+                writeJson(filename, jsonString)
 
 
             }
@@ -158,13 +156,13 @@ import javax.crypto.KeyGenerator
                 Toast.makeText(applicationContext, "Progress is: " + seek.progress + "%",
                         Toast.LENGTH_SHORT).show()
                 val imageByteArray = readBytes(applicationContext, imageUri)
-                if (imageByteArray!= null) {
+                if (imageByteArray != null) {
                     val image_bitmap = BitmapFactory.decodeByteArray(
                             imageByteArray,
                             0,
                             imageByteArray.size
                     )
-                    var newBitmap = sharpen(image_bitmap,( seek.progress.toFloat())/100)
+                    var newBitmap = sharpen(image_bitmap, (seek.progress.toFloat()) / 100)
                     imageView.setImageBitmap(newBitmap)
                 }
             }
