@@ -38,6 +38,7 @@ typealias LumaListener = (luma: Double) -> Unit
 
 class CameraActivity : AppCompatActivity() {
     private var imageCapture: ImageCapture? = null
+    private val INITIAL_ZOOM = 0.75f
     private lateinit var camera: Camera
     private lateinit var outputDirectory: File
     private lateinit var cameraExecutor: ExecutorService
@@ -478,7 +479,7 @@ class CameraActivity : AppCompatActivity() {
                         this, cameraSelector, preview, imageCapture
                 )
                 //set camera to be initially zoomed in
-                camera.cameraControl.setLinearZoom(0.5f)
+                camera.cameraControl.setLinearZoom(INITIAL_ZOOM)
 
                 hasFlash = camera.cameraInfo.hasFlashUnit()
                 preview.setSurfaceProvider(viewFinder.surfaceProvider)

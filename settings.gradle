@@ -1,2 +1,2 @@
 include ':app'
-rootProject.name = "EyePhone"
+rootProject.name = "MagnifEYE"
