@@ -70,11 +70,8 @@ class MainActivity : AppCompatActivity(),OnItemClickListener {
         File(outputDir, fileName).writeBitmap(image.toBitmap(), Bitmap.CompressFormat.JPEG, 100)
         val uri = Uri.fromFile(File("$outputDir/${fileName}"))
         val intent = Intent(this, ShareActivity::class.java)
-        intent.putExtra("Timestamp", image.createTimestamp())
         intent.putExtra("Uri", uri.toString())
-        intent.putExtra("filepath", image.filePath)
-        intent.putExtra("title", image.imgTitle)
-        intent.putExtra("type", image.img_type)
+        intent.putExtra("image", image)
 
         startActivity(intent)
     }
@@ -88,12 +85,15 @@ class MainActivity : AppCompatActivity(),OnItemClickListener {
                             .show()
                 }
             }
-            val filename = extras.getString("filename")
-            CoroutineScope(IO).launch {
-                if (filename != null) {
-                    updateHomeScreen(filename)
-                }
 
+            val action = extras.getString("action").toString()
+            if (action =="add" || action == "delete"){
+                val identity = extras.getString("identity") //If "add" -> identity=filename, If "delete" -> identity=alias
+                CoroutineScope(IO).launch {
+                    if (identity != null) {
+                        updateHomeScreen(action, identity)
+                    }
+                }
             }
         }
     }
@@ -119,13 +119,22 @@ class MainActivity : AppCompatActivity(),OnItemClickListener {
         }
     }
 
-    private suspend fun updateHomeScreen(filename: String) = withContext(IO){
-        val image = readAndDecryptImage(filename)
-        imageList.add(image)
-        imageList.sortByDescending { it.imgDate }
-        println("Debug: Finished adding new file")
+    private suspend fun updateHomeScreen(action:String, identity: String) = withContext(IO){
 
-
+        if(action == "add"){
+            val image = readAndDecryptImage(identity)
+            imageList.add(image)
+            imageList.sortByDescending { it.imgDate }
+            println("Debug: Finished adding new file")
+        }else if (action == "delete"){
+            for(image in imageList){
+                if (image.alias == identity){
+                    imageList.remove(image)
+                    break
+                }
+            }
+            println("Debug: Finished removing file")
+        }
 
         withContext(Main){
             //setup viewpager AND tab layout
@@ -134,20 +143,18 @@ class MainActivity : AppCompatActivity(),OnItemClickListener {
             }else{
                 home_textview.visibility = View.GONE
             }
-            println("Debug: Starting Attaching new image to adapter")
+            println("Debug: Starting updating adapter")
             println("Debug: Launching Adapter Processes in ${Thread.currentThread().name}")
             viewpager.adapter = HomeAdapter(this@MainActivity, this@MainActivity, imageList)
             val tabIcons = listOf<Int>(
                 R.drawable.ic_sharp_grid_on_24,
                 R.drawable.ic_baseline_list_alt_24
             )
-
-
             TabLayoutMediator(myTabBar, viewpager) { tab, position ->
                 viewpager.setCurrentItem(tab.position, true)
                 tab.icon = getDrawable(tabIcons[position])
             }.attach()
-            println("Debug: Finished Attaching new image to adapter")
+            println("Debug: Finished updating adapter")
             linearProgressIndicator.hide()
             textProgressIndicator.visibility = View.INVISIBLE
         }

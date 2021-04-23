@@ -17,6 +17,7 @@ class ShareActivity : AppCompatActivity() {
     lateinit var imgType: String
     lateinit var uriString: String
     lateinit var filepath: String
+    lateinit var alias: String
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_share)
@@ -24,30 +25,25 @@ class ShareActivity : AppCompatActivity() {
         val extras = intent.extras
 
         if (extras != null) {
-            val myTimestamp = extras.getString("Timestamp")
+            val myImage : DecryptedImage? = extras.getParcelable("image")
+            if (myImage != null){
+                timestamp = myImage.createTimestamp()
+                dateText.text = timestamp
+
+                imgTitle = myImage.imgTitle.toString()
+                titleText.text = imgTitle
+
+                imgType = myImage.img_type.toString()
+                typeText.text = imgType
+
+                filepath = myImage.filePath.toString()
+                alias = myImage.alias.toString()
+            }
             val myUriString = extras.getString("Uri")
-            val myFilepath = extras.getString("filepath")
-            val myTitle = extras.getString("title")
-            val myType = extras.getString("type")
-            if (myTimestamp!=null){
-                dateText.text = myTimestamp
-                timestamp = myTimestamp
-            }
-            if (myTitle!=null){
-                titleText.text = myTitle
-                imgTitle = myTitle
-            }
-            if (myType!=null){
-                typeText.text = myType
-                imgType = myType
-            }
-            if (myUriString!=null){
+            if (myUriString != null){
                 val uri = Uri.parse(myUriString)
                 shareImg.setImageURI(uri)
                 uriString = myUriString
-            }
-            if (myFilepath!=null){
-                filepath = myFilepath
             }
         }
 
@@ -58,16 +54,6 @@ class ShareActivity : AppCompatActivity() {
             println("MY PATH: $myPath")
             val myFile = File(myPath)
             val photoURI = FileProvider.getUriForFile(this, this.applicationContext.packageName.toString() + ".provider", myFile)
-//            val shareIntent = Intent()
-//            shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-//            shareIntent.action = Intent.ACTION_SEND
-//            shareIntent.putExtra(Intent.EXTRA_STREAM, photoURI)
-//            shareIntent.putExtra(Intent.EXTRA_TEXT, "$timestamp\nLeft Eye");
-//            shareIntent.type = "image/jpeg"
-//
-//            val chooser = (Intent.createChooser(shareIntent, "Share Image..."))
-//            startActivity(chooser)
-
             val bundle = Bundle()
             bundle.putString("uri", uriString)
             bundle.putString("filepath", myPath)
@@ -96,13 +82,16 @@ class ShareActivity : AppCompatActivity() {
                         println("My Filepath is $filepath")
                         val intent = Intent(this, MainActivity::class.java)
                         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
                         intent.putExtra("showSnackbar", true)
+                        intent.putExtra("action", "delete")
+                        intent.putExtra("identity", alias)
+                        intent.putExtra("success", isDeleted)
                         if(isDeleted){
                             intent.putExtra("snackbarText", "Your image was successfully deleted.")
                         }else{
                             intent.putExtra("snackbarText", "Error deleting image.")
                         }
-
                         startActivity(intent);
                     }
                     .show()

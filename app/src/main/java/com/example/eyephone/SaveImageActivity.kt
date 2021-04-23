@@ -45,7 +45,7 @@ import javax.crypto.KeyGenerator
 
     //initialize tempImage class with default values
     var myTempImage = TempImage(Bitmap.createBitmap(1,1,Bitmap.Config.ARGB_8888), Bitmap.createBitmap(1,1,Bitmap.Config.ARGB_8888), 0f, 1f, 0f)
-    private val chars = ('a'..'Z') + ('A'..'Z') + ('0'..'9')
+    private val chars = ('a'..'z') + ('A'..'Z') + ('0'..'9')
 
      override fun onCreateOptionsMenu(menu: Menu?): Boolean {
          menuInflater.inflate(R.menu.app_toolbar_savephoto_menu, menu);
@@ -359,7 +359,8 @@ import javax.crypto.KeyGenerator
          intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
          intent.putExtra("showSnackbar", true)
          intent.putExtra("snackbarText", "Image saved successfully.")
-         intent.putExtra("filename", filename)
+         intent.putExtra("action", "add")
+         intent.putExtra("identity", filename)
          println("Debug: Returning to home screen now. Bye!")
          startActivity(intent);
      }
