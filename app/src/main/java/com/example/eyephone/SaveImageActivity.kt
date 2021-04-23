@@ -21,9 +21,13 @@ import android.widget.AutoCompleteTextView
 import android.widget.SeekBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.snackbar.Snackbar
 import com.google.gson.GsonBuilder
 import kotlinx.android.synthetic.main.activity_camera.*
 import kotlinx.android.synthetic.main.activity_save_image.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.Dispatchers.Main
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
@@ -48,17 +52,25 @@ import javax.crypto.KeyGenerator
          return true
      }
      override fun onOptionsItemSelected(item: MenuItem) = when (item.itemId) {
-         R.id.action_save -> {
-             // User chose the "Info" item, show the app Info UI...
-             save()
-             true
-         }
+             R.id.action_save -> {
+                 // User chose the "Info" item, show the app Info UI...
 
-         else -> {
-             // If we got here, the user's action was not recognized.
-             // Invoke the superclass to handle it.
-             super.onOptionsItemSelected(item)
-         }
+                 circleProgress.show()
+                 println("Debug: Launching Progress Indicator in ${Thread.currentThread().name}")
+                 CoroutineScope(IO).launch{
+                     save()
+                 }
+                 // returnToHome()
+//                 circleProgress.hide()
+
+                 true
+             }
+
+             else -> {
+                 // If we got here, the user's action was not recognized.
+                 // Invoke the superclass to handle it.
+                 super.onOptionsItemSelected(item)
+             }
      }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -156,91 +168,99 @@ import javax.crypto.KeyGenerator
     private fun readBytes(context: Context, uri: Uri): ByteArray? =
         context.contentResolver.openInputStream(uri)?.buffered()?.use { it.readBytes() }
 
-     fun save() {
-         // grab image title and image type from user
-         val img_title = imgTitleContainer.editText?.text.toString()
-         val img_type = dropdown.editText?.text.toString()
-         var validated = true
-         if (img_title == "") {
-             imgTitleContainer.error = "Please input a valid image title."
-             validated = false
-         }
-         if (img_type == "") {
-             dropdown.error = "Please select a valid image type."
-             validated = false
-         }
-         if (validated) {
+    private suspend fun validate(img_title: String, img_type: String) : Boolean = withContext(Main){
+            println("Debug: Launching Validate in ${Thread.currentThread().name}")
+            var validated = true
+            if (img_title == "") {
+                imgTitleContainer.error = "Please input a valid image title."
+                validated = false
+            }
+            if (img_type == "") {
+                dropdown.error = "Please select a valid image type."
+                validated = false
+            }
+            validated
+        }
 
-             // obtain final bitmap
-             val imageBitmap = myTempImage.finalBmp
 
-             // embed L|R on image
-             val embed = when (img_type) {
-                 Constants().LEFT_EYE -> BitmapFactory.decodeResource(
-                         this.resources,
-                         R.drawable.overlay_left_eye
-                 )
-                 Constants().RIGHT_EYE -> BitmapFactory.decodeResource(
-                         this.resources,
-                         R.drawable.overlay_right_eye
-                 )
-                 else -> BitmapFactory.decodeResource(
-                         this.resources,
-                         R.drawable.overlay_both_eyes
-                 )
-             }
+    private suspend fun save() {
+        withContext(IO){
 
-             val newBitmap = overlay(imageBitmap, embed)
-             val stream = ByteArrayOutputStream()
-             if (newBitmap != null) {
-                 newBitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream)
-             }
-             val finalImage = stream.toByteArray()
-             // encrypt image byte array using android keystore
-             // generate a new alias and key
-             val alias = generateAlias()
-             generateKey(alias)
-             // encrypt imageByteArray using key alias. Returns a par of IvBytes and Encrypted Bytes
-             val pair: Pair<ByteArray, ByteArray> = encrypt(finalImage, alias)
-             // convert byte arrays to strings and save as json string
-             val jsonString = generateJsonString(
-                     pair.first,
-                     pair.second,
-                     alias,
-                     img_title,
-                     img_type,
-                     Date()
-             )
-             val filename = "IMG_$alias.json"
+            println("Debug: Launching Save in ${Thread.currentThread().name}")
 
-             // store data into file (JSON FORMAT)
-             writeJson(filename, jsonString)
-         }
+            val img_title = imgTitleContainer.editText?.text.toString()
+            val img_type = dropdown.editText?.text.toString()
+
+            if (validate(img_title, img_type)) {
+// obtain final bitmap
+                val imageBitmap = myTempImage.finalBmp
+                // embed L|R on image
+                val overlay = createOverlay(img_type)
+                //convert embedded image to a byte array stream
+                val stream = ByteArrayOutputStream()
+                overlay(imageBitmap, overlay)?.compress(Bitmap.CompressFormat.JPEG, 100, stream)
+                val finalImage = stream.toByteArray()
+                // encrypt image byte array using android keystore
+                // generate a new alias and key
+                val alias = generateAlias()
+                generateKey(alias)
+                // encrypt imageByteArray using key alias. Returns a par of IvBytes and Encrypted Bytes
+                val pair: Pair<ByteArray, ByteArray> = encrypt(finalImage, alias)
+                // convert byte arrays to strings and save as json string
+                val jsonString = generateJsonString(
+                    pair.first,
+                    pair.second,
+                    alias,
+                    img_title,
+                    img_type,
+                    Date()
+                )
+                val filename = "IMG_$alias.json"
+
+                // store data into file (JSON FORMAT)
+                writeJson(filename, jsonString)
+                returnToHome(filename)
+            }
+            withContext(Main){
+                circleProgress.hide()
+            }
+
+
+        }
+
      }
-    fun overlay(bmp1: Bitmap, bmp2: Bitmap): Bitmap? {
-        val bmOverlay = Bitmap.createBitmap(bmp1.width, bmp1.height, bmp1.config)
-        val canvas = Canvas(bmOverlay)
-        canvas.drawBitmap(bmp1, Matrix(), null)
-        canvas.drawBitmap(bmp2, 30f, 30f, null)
-        bmp1.recycle()
-        bmp2.recycle()
-        return bmOverlay
-    }
 
-     fun editPhoto(image: TempImage){
+    private fun createOverlay(imgType: String): Bitmap{
+         if (imgType == Constants().LEFT_EYE) {
+             return BitmapFactory.decodeResource(this.resources, R.drawable.overlay_left_eye)}
+         else if (imgType == Constants().RIGHT_EYE) {
+             return BitmapFactory.decodeResource(applicationContext.resources, R.drawable.overlay_right_eye)}
+         return BitmapFactory.decodeResource(applicationContext.resources, R.drawable.overlay_both_eyes)
+     }
+
+    private fun overlay(bmp1: Bitmap, bmp2: Bitmap): Bitmap? {
+        println("Debug: Launching Overlay in ${Thread.currentThread().name}")
+         val bmOverlay = Bitmap.createBitmap(bmp1.width, bmp1.height, bmp1.config)
+         val canvas = Canvas(bmOverlay)
+         canvas.drawBitmap(bmp1, Matrix(), null)
+         canvas.drawBitmap(bmp2, 30f, 30f, null)
+         bmp1.recycle()
+         bmp2.recycle()
+         return bmOverlay
+    }
+    fun editPhoto(image: TempImage){
          val sharpenedImage = modifySharpness(image.originalBmp, image.sharpnessMod)
          val brightenedImage = changeBitmapContrastBrightness(sharpenedImage, image.contrastMod, image.brightnessMod)
          image.finalBmp = brightenedImage
      }
 
      /**
-      *
       * @param bmp input bitmap
-      * @param contrast 0..10 1 is default
+      * @param contrast 0..2 1 is default
       * @param brightness -255..255 0 is default
       * @return new bitmap
-      */
-     fun changeBitmapContrastBrightness(bmp: Bitmap, contrast: Float, brightness: Float): Bitmap {
+     */
+    fun changeBitmapContrastBrightness(bmp: Bitmap, contrast: Float, brightness: Float): Bitmap {
 
 //         val t = (1.0f - contrast)/2.0f
          val t = 0f
@@ -256,9 +276,12 @@ import javax.crypto.KeyGenerator
          canvas.drawBitmap(bmp, 0f, 0f, paint)
          return ret
      }
-
-
-     fun modifySharpness(bitmap: Bitmap, multiplier: Float): Bitmap {
+     /**
+      * @param bmp input bitmap
+      * @param multiplier 0..1 0 is default
+      * @return new bitmap
+     */
+    fun modifySharpness(bitmap: Bitmap, multiplier: Float): Bitmap {
          val sharp = floatArrayOf(0f, (-multiplier).toFloat(), 0f, (-multiplier).toFloat(), 1 + 4f * multiplier, (-multiplier).toFloat(), 0f, (-multiplier).toFloat(), 0f)
          val newBitmap = Bitmap.createBitmap(
                  bitmap.getWidth(), bitmap.getHeight(),
@@ -279,7 +302,6 @@ import javax.crypto.KeyGenerator
 
          return newBitmap
      }
-
     private fun generateAlias(): String = List(16) { chars.random() }.joinToString("")
     private fun generateTitle(): String {
         val simpleDateFormat = SimpleDateFormat("dd MMM yyyy")
@@ -307,29 +329,43 @@ import javax.crypto.KeyGenerator
         val gson = GsonBuilder().setPrettyPrinting().create()
         return gson.toJson(encryptedImage)
     }
-    private fun writeJson(filename: String, data: String) {
+
+    private fun writeJson(filename: String, data: String): Boolean {
+        println("Debug: Launching writeJson in ${Thread.currentThread().name}")
         val path = this.filesDir.absolutePath
         val dir = File("$path/MyCaptures")
         if (!dir.exists()){
             dir.mkdir()
         }
         println("PATH: $dir")
-        try{
+        return try{
             val file = File("$dir/$filename")
             file.writeText(data)
-//            Toast.makeText(applicationContext, "Image saved successfully.", Toast.LENGTH_SHORT).show()
-            val intent = Intent(this, MainActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            intent.putExtra("showSnackbar", true)
-            intent.putExtra("snackbarText", "Image saved successfully.")
-            startActivity(intent);
+            true
+
         }catch (exc: IOException){
             exc.printStackTrace()
             Toast.makeText(applicationContext, "Error saving image.", Toast.LENGTH_SHORT).show()
+            false
         }
 
     }
+
+     private suspend fun returnToHome(filename: String) = withContext(Main){
+
+         println("Debug: Launching returnToHome in ${Thread.currentThread().name}")
+         val intent = Intent(this@SaveImageActivity, MainActivity::class.java)
+         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+         intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+         intent.putExtra("showSnackbar", true)
+         intent.putExtra("snackbarText", "Image saved successfully.")
+         intent.putExtra("filename", filename)
+         println("Debug: Returning to home screen now. Bye!")
+         startActivity(intent);
+     }
+
     private fun generateKey(alias: String){
+        println("Debug: Launching generateKey in ${Thread.currentThread().name}")
         //generate random key
         val keyGenerator = KeyGenerator.getInstance(
                 KeyProperties.KEY_ALGORITHM_AES,
@@ -347,6 +383,7 @@ import javax.crypto.KeyGenerator
         keyGenerator.generateKey()
     }
     private fun encrypt(data: ByteArray, alias: String): Pair<ByteArray, ByteArray>{
+        println("Debug: Launching encrypt in ${Thread.currentThread().name}")
         // get the key
 
         val keyStore = KeyStore.getInstance("AndroidKeyStore")

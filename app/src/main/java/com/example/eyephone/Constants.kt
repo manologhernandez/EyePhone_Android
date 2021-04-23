@@ -11,5 +11,7 @@ class Constants {
     val LEFT_EYE = "Left Eye"
     val RIGHT_EYE = "Right Eye"
     val BOTH_EYES = "Both Eyes"
+    val SHARED_PREFS_TITLE = "MagnifEYE_SharedPrefs"
+    val SP_FIRSTTIMEKEY = "keyFirstTime"
 
 }

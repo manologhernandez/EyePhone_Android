@@ -115,6 +115,7 @@
     <string name="share_email_subject">EyePhone Capture</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
-    <string name="home_no_capture">Looks like you haven\'t captured anything yet. Press the camera icon to take a photo!</string>
+    <string name="home_no_capture">Looks like you haven\'t captured anything yet. \nPress the camera icon to take a photo!</string>
+
     <string name="images">Images</string>
 </resources>

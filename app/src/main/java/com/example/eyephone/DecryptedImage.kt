@@ -8,12 +8,18 @@ import java.sql.Timestamp
 import java.text.SimpleDateFormat
 
 
-class DecryptedImage(val byteArray: ByteArray, val alias: String, val filePath: String, val imgTitle: String, val img_type: String, val imgDate: java.util.Date) {
+class DecryptedImage(val byteArray: ByteArray? = null, val alias: String? = null, val filePath: String? = null, val imgTitle: String? = null, val img_type: String? = null, val imgDate: java.util.Date? = null) {
     fun toBitmap (): Bitmap {
-        return BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
+        if (byteArray != null) {
+            return BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
+        }
+        return Bitmap.createBitmap(1,1,Bitmap.Config.ARGB_8888) // null bitmap
     }
     fun createTimestamp(): String{
         val simpleDateFormat = SimpleDateFormat("yyyy.MM.dd 'at' HH:mm:ss:S z")
-        return simpleDateFormat.format(imgDate)
+        if(imgDate != null){
+            return simpleDateFormat.format(imgDate)
+        }
+        return simpleDateFormat.format(java.util.Date())
     }
 }

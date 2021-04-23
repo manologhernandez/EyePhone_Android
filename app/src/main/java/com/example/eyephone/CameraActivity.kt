@@ -2,6 +2,7 @@ package com.example.eyephone
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -46,6 +47,7 @@ class CameraActivity : AppCompatActivity() {
     private var showOverlay: Boolean = true
     private var currOrientation = 0
     private lateinit var myOrientationEventListener: OrientationEventListener
+
     override fun onOptionsItemSelected(item: MenuItem) = when (item.itemId) {
         R.id.action_info -> {
             // User chose the "Info" item, show the app Info UI...
@@ -83,8 +85,13 @@ class CameraActivity : AppCompatActivity() {
         overlay.setImageResource(R.drawable.overlay_single)
         focusImg.setImageResource(R.drawable.focus)
 
-        myOrientationEventListener = object : OrientationEventListener(this,
-                SensorManager.SENSOR_DELAY_NORMAL) {
+
+        //setup shared preferences
+        val sharedPrefs = this.getSharedPreferences(Constants().SHARED_PREFS_TITLE, Context.MODE_PRIVATE)
+        val sharedPrefsEditor = sharedPrefs.edit()
+
+
+        myOrientationEventListener = object : OrientationEventListener(this, SensorManager.SENSOR_DELAY_NORMAL) {
             override fun onOrientationChanged(orientation: Int) {
 //                Log.v("ORIENTATION", "Orientation changed to $orientation")
                 if(orientation >= 316 && orientation <= 45) {
