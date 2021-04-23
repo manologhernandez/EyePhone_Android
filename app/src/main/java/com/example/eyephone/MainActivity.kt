@@ -71,7 +71,13 @@ class MainActivity : AppCompatActivity(),OnItemClickListener {
         val uri = Uri.fromFile(File("$outputDir/${fileName}"))
         val intent = Intent(this, ShareActivity::class.java)
         intent.putExtra("Uri", uri.toString())
-        intent.putExtra("image", image)
+        intent.putExtra("image", ParcelizedImage(
+                image.createTimestamp(),
+                image.imgTitle.toString(),
+                image.img_type.toString(),
+                image.filePath.toString(),
+                image.alias.toString()
+        ))
 
         startActivity(intent)
     }

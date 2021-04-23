@@ -25,19 +25,19 @@ class ShareActivity : AppCompatActivity() {
         val extras = intent.extras
 
         if (extras != null) {
-            val myImage : DecryptedImage? = extras.getParcelable("image")
+            val myImage : ParcelizedImage? = extras.getParcelable("image")
             if (myImage != null){
-                timestamp = myImage.createTimestamp()
+                timestamp = myImage.timestamp
                 dateText.text = timestamp
 
-                imgTitle = myImage.imgTitle.toString()
+                imgTitle = myImage.imgTitle
                 titleText.text = imgTitle
 
-                imgType = myImage.img_type.toString()
+                imgType = myImage.imgType
                 typeText.text = imgType
 
-                filepath = myImage.filePath.toString()
-                alias = myImage.alias.toString()
+                filepath = myImage.filePath
+                alias = myImage.alias
             }
             val myUriString = extras.getString("Uri")
             if (myUriString != null){
