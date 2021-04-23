@@ -51,8 +51,7 @@ class CameraActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem) = when (item.itemId) {
         R.id.action_info -> {
             // User chose the "Info" item, show the app Info UI...
-            val tutorialDialog = CameraTutorialFragment()
-            tutorialDialog.show(supportFragmentManager, "tutorialDialog")
+            showTutorial()
             true
         }
         R.id.action_overlay -> {
@@ -89,7 +88,13 @@ class CameraActivity : AppCompatActivity() {
         //setup shared preferences
         val sharedPrefs = this.getSharedPreferences(Constants().SHARED_PREFS_TITLE, Context.MODE_PRIVATE)
         val sharedPrefsEditor = sharedPrefs.edit()
-
+        val isFirstTime = sharedPrefs.getBoolean(Constants().SP_FIRSTTIMEKEY, true)
+        if(isFirstTime){
+            showTutorial()
+            sharedPrefsEditor.putBoolean(Constants().SP_FIRSTTIMEKEY, false)
+            sharedPrefsEditor.apply()
+            sharedPrefsEditor.commit()
+        }
 
         myOrientationEventListener = object : OrientationEventListener(this, SensorManager.SENSOR_DELAY_NORMAL) {
             override fun onOrientationChanged(orientation: Int) {
@@ -168,30 +173,6 @@ class CameraActivity : AppCompatActivity() {
             myOrientationEventListener.disable();
         }
 
-
-
-        // check intent extras
-//        val extras = intent.extras
-//        if (extras != null) {
-//            val type = extras.getInt("Type")
-//            if (type == Constants().CAPTURE_TYPE_SINGLE){
-//
-//                overlay.setImageResource(R.drawable.overlay_single)
-//            }else if (type == Constants().CAPTURE_TYPE_BOTH){
-//                val dip = 300f
-//                val px = TypedValue.applyDimension(
-//                    TypedValue.COMPLEX_UNIT_DIP,
-//                    dip,
-//                    resources.displayMetrics
-//                )
-//                overlay.requestLayout()
-//                overlay.layoutParams.width = px.toInt()
-//                overlay.layoutParams.height = px.toInt()
-//                overlay.setImageResource(R.mipmap.image_both_eye_outline_foreground)
-//            }else if (type == Constants().CAPTURE_TYPE_MULTI){
-//                //
-//            }
-//        }
 
         // Request camera permissions
         if (allPermissionsGranted()) {
@@ -286,6 +267,12 @@ class CameraActivity : AppCompatActivity() {
         menuInflater.inflate(R.menu.app_toolbar_camera_menu, menu);
         return true
     }
+
+    private fun showTutorial(){
+        val tutorialDialog = CameraTutorialFragment()
+        tutorialDialog.show(supportFragmentManager, "tutorialDialog")
+    }
+
     private fun showSavePreview(uri: Uri){
         println("URI: $uri")
         val intent = Intent(this, SaveImageActivity::class.java)

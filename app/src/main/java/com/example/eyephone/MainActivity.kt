@@ -169,8 +169,6 @@ class MainActivity : AppCompatActivity(),OnItemClickListener {
 
             println("Debug: Finished going thru each file and decrypting")
 
-
-
         }
         withContext(Main){
             //setup viewpager AND tab layout
